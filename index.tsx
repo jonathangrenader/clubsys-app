@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -19,14 +20,15 @@ import {
 } from "firebase/firestore";
 
 // --- FIREBASE CONFIG ---
+// FIX: Load Firebase config from environment variables to prevent exposing secrets in the repository.
 const firebaseConfig = {
-    apiKey: "AIzaSyCIEKw8enjb4ijk7YRiZR4WFI5ATfAe0rk",
-    authDomain: "clubsys-app-v2-eb6f6.firebaseapp.com",
-    projectId: "clubsys-app-v2-eb6f6",
-    storageBucket: "clubsys-app-v2-eb6f6.appspot.com",
-    messagingSenderId: "916588835221",
-    appId: "1:916588835221:web:f5b19b697e9748f73b469c",
-    measurementId: "G-4NBJY6MYDX"
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_APP_ID,
+    measurementId: process.env.FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
@@ -103,13 +105,9 @@ interface ErrorBoundaryState {
     error: Error | null;
     errorInfo: React.ErrorInfo | null;
 }
-// FIX: The ErrorBoundary class component was missing a constructor. Initializing state in the constructor
-// ensures the component is correctly typed and has access to `this.state`, `this.setState`, and `this.props`.
+// FIX: Refactored to use a class property for state initialization instead of a constructor, which is more modern and concise. This fixes errors related to state not being initialized.
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-    constructor(props: ErrorBoundaryProps) {
-        super(props);
-        this.state = { hasError: false, error: null, errorInfo: null };
-    }
+    state: ErrorBoundaryState = { hasError: false, error: null, errorInfo: null };
 
     static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
         return { hasError: true, error };
