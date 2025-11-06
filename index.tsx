@@ -1,6 +1,5 @@
 
 
-
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -20,17 +19,15 @@ import {
 } from "firebase/firestore";
 
 // --- FIREBASE CONFIG ---
-// V Reemplaza los valores de abajo con tus credenciales de Firebase V
 const firebaseConfig = {
-  apiKey: process.env.API_KEY, // ¡Mantén esta línea así por seguridad!
-  authDomain: "clubsys-app-v2-eb6f6.firebaseapp.com", // ej: "tu-proyecto.firebaseapp.com"
-  projectId: "clubsys-app-v2-eb6f6", // ej: "tu-proyecto-id"
-  storageBucket: "clubsys-app-v2-eb6f6.firebasestorage.app", // ej: "tu-proyecto.appspot.com"
-  messagingSenderId: "916588835221",
-  appId: "1:916588835221:web:f5b19b697e9748f73b469c",
-  measurementId: "G-4NBJY6MYDX" // Este es opcional
+    apiKey: "AIzaSyCIEKw8enjb4ijk7YRiZR4WFI5ATfAe0rk",
+    authDomain: "clubsys-app-v2-eb6f6.firebaseapp.com",
+    projectId: "clubsys-app-v2-eb6f6",
+    storageBucket: "clubsys-app-v2-eb6f6.appspot.com",
+    messagingSenderId: "916588835221",
+    appId: "1:916588835221:web:f5b19b697e9748f73b469c",
+    measurementId: "G-4NBJY6MYDX"
 };
-// ^ Reemplaza los valores de arriba con tus credenciales de Firebase ^
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -106,9 +103,8 @@ interface ErrorBoundaryState {
     error: Error | null;
     errorInfo: React.ErrorInfo | null;
 }
-// Fix: The ErrorBoundary class component was causing compilation errors because state was likely initialized using class field syntax,
-// which can fail with certain TypeScript configurations. By switching to a constructor-based state initialization,
-// we ensure the component is correctly typed, giving it access to `this.state`, `this.setState`, and `this.props`.
+// FIX: The ErrorBoundary class component was missing a constructor. Initializing state in the constructor
+// ensures the component is correctly typed and has access to `this.state`, `this.setState`, and `this.props`.
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: ErrorBoundaryProps) {
         super(props);
