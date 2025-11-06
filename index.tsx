@@ -1,6 +1,9 @@
 
 
 
+
+
+
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -20,15 +23,15 @@ import {
 } from "firebase/firestore";
 
 // --- FIREBASE CONFIG ---
-// FIX: Load Firebase config from environment variables to prevent exposing secrets in the repository.
+// FIX: Load Firebase config from VITE_ prefixed environment variables to ensure they are exposed to the client-side build.
 const firebaseConfig = {
-    apiKey: process.env.FIREBASE_API_KEY,
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.FIREBASE_APP_ID,
-    measurementId: process.env.FIREBASE_MEASUREMENT_ID
+    apiKey: process.env.VITE_FIREBASE_API_KEY,
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.VITE_FIREBASE_APP_ID,
+    measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
@@ -105,9 +108,12 @@ interface ErrorBoundaryState {
     error: Error | null;
     errorInfo: React.ErrorInfo | null;
 }
-// FIX: Refactored to use a class property for state initialization instead of a constructor, which is more modern and concise. This fixes errors related to state not being initialized.
+// FIX: The class property initialization for state was causing errors where `setState` and `props` were not found. Reverting to a standard constructor with `super(props)` to ensure the component is correctly initialized as a React.Component instance.
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-    state: ErrorBoundaryState = { hasError: false, error: null, errorInfo: null };
+    constructor(props: ErrorBoundaryProps) {
+        super(props);
+        this.state = { hasError: false, error: null, errorInfo: null };
+    }
 
     static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
         return { hasError: true, error };
