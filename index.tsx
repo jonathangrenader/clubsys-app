@@ -1,26 +1,12 @@
 
-
-
-
-
-
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
-import { 
-    getFirestore, 
-    doc, 
-    getDoc, 
-    setDoc, 
-    collection, 
-    getDocs, 
-    addDoc, 
-    updateDoc, 
-    deleteDoc,
-    writeBatch
-} from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+// FIX: The named imports from 'firebase/firestore' were failing.
+// Using a namespace import is more robust against potential module resolution issues.
+import * as firestore from "firebase/firestore";
 
 // --- FIREBASE CONFIG ---
 // FIX: Load Firebase config from VITE_ prefixed environment variables to ensure they are exposed to the client-side build.
@@ -36,7 +22,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = firestore.getFirestore(app);
 
 // --- ORIGINAL MOCK DATA FOR SEEDING ---
 const mockDatabaseSeed = {
@@ -149,8 +135,8 @@ const App = () => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
-                const userDocRef = doc(db, "users", firebaseUser.uid);
-                const userDoc = await getDoc(userDocRef);
+                const userDocRef = firestore.doc(db, "users", firebaseUser.uid);
+                const userDoc = await firestore.getDoc(userDocRef);
                 if (userDoc.exists()) {
                     // User exists, use their stored profile. The email in the doc is the short one.
                     setCurrentUser({ uid: firebaseUser.uid, ...userDoc.data() });
@@ -160,7 +146,7 @@ const App = () => {
                     const userSeed = mockDatabaseSeed.users.find(u => u.email === emailUsername);
                     if(userSeed){
                         // Save the seed data (which has the short email) to Firestore
-                        await setDoc(userDocRef, userSeed);
+                        await firestore.setDoc(userDocRef, userSeed);
                         // Set the current user state using the seed data
                         setCurrentUser({ uid: firebaseUser.uid, ...userSeed });
                     } else {
@@ -185,6 +171,17 @@ const App = () => {
         }
     };
     
+    const handleGoogleLogin = async () => {
+        const provider = new GoogleAuthProvider();
+        try {
+            await signInWithPopup(auth, provider);
+            return { success: true };
+        } catch (error) {
+            console.error("Error during Google sign-in:", error);
+            return { success: false, message: 'Error al iniciar sesión con Google.' };
+        }
+    };
+
     const handleLogout = async () => {
         await signOut(auth);
     }
@@ -196,12 +193,12 @@ const App = () => {
     return (
         currentUser 
             ? <DashboardPage currentUser={currentUser} onLogout={handleLogout} /> 
-            : <LoginPage onLogin={handleLogin} />
+            : <LoginPage onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} />
     );
 };
 
 // --- LOGIN PAGE ---
-const LoginPage = ({ onLogin }) => {
+const LoginPage = ({ onLogin, onGoogleLogin }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -214,6 +211,23 @@ const LoginPage = ({ onLogin }) => {
             setError(result.message);
         }
     };
+    
+    const handleGoogleSignIn = async () => {
+        setError('');
+        const result = await onGoogleLogin();
+        if (!result.success) {
+            setError(result.message);
+        }
+    };
+    
+    const googleIcon = (
+        <svg style={{width: '20px', height: '20px'}} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+            <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+            <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+            <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+            <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C42.022,35.242,44,30.038,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+        </svg>
+    );
 
     return (
         <div className="login-wrapper">
@@ -222,9 +236,14 @@ const LoginPage = ({ onLogin }) => {
                 <form className="login-form" onSubmit={handleSubmit}>
                     <div className="form-control"><input type="text" placeholder="Usuario" value={email} onChange={e => setEmail(e.target.value)} required /></div>
                     <div className="form-control"><input type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} required /></div>
-                    {error && <p className="error-message">{error}</p>}
                     <button type="submit" className="btn btn-primary">Iniciar Sesión</button>
                 </form>
+                 <div className="separator">O</div>
+                <button onClick={handleGoogleSignIn} className="btn btn-google">
+                    {googleIcon}
+                    <span>Ingresar con Google</span>
+                </button>
+                {error && <p className="error-message" style={{ marginTop: '1rem' }}>{error}</p>}
             </div>
         </div>
     );
@@ -241,22 +260,22 @@ const InitializeDataButton = () => {
         setMessage('');
 
         try {
-            const batch = writeBatch(db);
+            const batch = firestore.writeBatch(db);
 
             // Set system config
-            const configDocRef = doc(db, "system", "config");
+            const configDocRef = firestore.doc(db, "system", "config");
             batch.set(configDocRef, mockDatabaseSeed.systemConfig);
 
             // Set club data
             for (const clubId in mockDatabaseSeed.clubs) {
                 const clubData = mockDatabaseSeed.clubs[clubId];
-                const clubDocRef = doc(db, "clubs", clubId);
+                const clubDocRef = firestore.doc(db, "clubs", clubId);
                 batch.set(clubDocRef, { name: clubData.name, plan: 'Básico', status: 'activo' });
 
                 for (const collectionName of ['socios', 'membresias', 'pagos', 'instructores', 'clases']) {
                     if (clubData[collectionName]) {
                         for (const item of clubData[collectionName]) {
-                            const itemDocRef = doc(collection(db, `clubs/${clubId}/${collectionName}`), item.id);
+                            const itemDocRef = firestore.doc(firestore.collection(db, `clubs/${clubId}/${collectionName}`), item.id);
                             batch.set(itemDocRef, item);
                         }
                     }
@@ -326,8 +345,8 @@ const MainContent = ({ view, currentUser }) => {
     useEffect(() => {
         const checkData = async () => {
             if (role === 'super_admin') {
-                const docRef = doc(db, "system", "config");
-                const docSnap = await getDoc(docRef);
+                const docRef = firestore.doc(db, "system", "config");
+                const docSnap = await firestore.getDoc(docRef);
                 setIsDbInitialized(docSnap.exists());
             }
             setLoading(false);
@@ -387,10 +406,10 @@ const DashboardView = ({ clubId }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const sociosRef = collection(db, `clubs/${clubId}/socios`);
-                const membresiasRef = collection(db, `clubs/${clubId}/membresias`);
-                const sociosSnap = await getDocs(sociosRef);
-                const membresiasSnap = await getDocs(membresiasRef);
+                const sociosRef = firestore.collection(db, `clubs/${clubId}/socios`);
+                const membresiasRef = firestore.collection(db, `clubs/${clubId}/membresias`);
+                const sociosSnap = await firestore.getDocs(sociosRef);
+                const membresiasSnap = await firestore.getDocs(membresiasRef);
                 
                 const sociosData = sociosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const membresiasData = membresiasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -456,14 +475,14 @@ const SuperAdminDashboard = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const clubsRef = collection(db, "clubs");
-                const clubsSnap = await getDocs(clubsRef);
+                const clubsRef = firestore.collection(db, "clubs");
+                const clubsSnap = await firestore.getDocs(clubsRef);
                 const totalClubs = clubsSnap.size;
                 let totalSocios = 0;
                 
                 for (const clubDoc of clubsSnap.docs) {
-                    const sociosRef = collection(db, `clubs/${clubDoc.id}/socios`);
-                    const sociosSnap = await getDocs(sociosRef);
+                    const sociosRef = firestore.collection(db, `clubs/${clubDoc.id}/socios`);
+                    const sociosSnap = await firestore.getDocs(sociosRef);
                     totalSocios += sociosSnap.size;
                 }
 
@@ -510,8 +529,8 @@ const InstructorDashboard = ({ clubId, instructorId }) => {
                 return;
             }
             try {
-                const classesRef = collection(db, `clubs/${clubId}/clases`);
-                const classesSnap = await getDocs(classesRef);
+                const classesRef = firestore.collection(db, `clubs/${clubId}/clases`);
+                const classesSnap = await firestore.getDocs(classesRef);
                 const allClasses = classesSnap.docs.map(doc => doc.data());
                 const instructorClasses = allClasses.filter(c => c.instructorId === instructorId);
                 
