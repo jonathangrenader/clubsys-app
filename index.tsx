@@ -4,25 +4,28 @@ import ReactDOM from 'react-dom/client';
 
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-// FIX: The named imports from 'firebase/firestore' were failing.
-// Using a namespace import is more robust against potential module resolution issues.
-import * as firestore from "firebase/firestore";
+// FIX: The namespace import `import * as firestore` is not compatible with the modular Firebase v9 SDK.
+// Replaced it with named imports for Firestore functions and removed the `firestore.` prefix from all calls.
+import { getFirestore, doc, getDoc, setDoc, writeBatch, collection, getDocs } from "firebase/firestore";
 
 // --- FIREBASE CONFIG ---
-// FIX: Load Firebase config from VITE_ prefixed environment variables to ensure they are exposed to the client-side build.
+// IMPORTANT: Replace the placeholder values below with your actual Firebase project configuration.
+// You can find these details in the Firebase console:
+// Project settings > General > Your apps > SDK setup and configuration
 const firebaseConfig = {
-    apiKey: process.env.VITE_FIREBASE_API_KEY,
-    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.VITE_FIREBASE_APP_ID,
-    measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID",
+    measurementId: "YOUR_MEASUREMENT_ID"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = firestore.getFirestore(app);
+// FIX: Switched to named import for getFirestore
+const db = getFirestore(app);
 
 // --- ORIGINAL MOCK DATA FOR SEEDING ---
 const mockDatabaseSeed = {
@@ -135,8 +138,9 @@ const App = () => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
-                const userDocRef = firestore.doc(db, "users", firebaseUser.uid);
-                const userDoc = await firestore.getDoc(userDocRef);
+                // FIX: Switched to named imports for Firestore functions
+                const userDocRef = doc(db, "users", firebaseUser.uid);
+                const userDoc = await getDoc(userDocRef);
                 if (userDoc.exists()) {
                     // User exists, use their stored profile. The email in the doc is the short one.
                     setCurrentUser({ uid: firebaseUser.uid, ...userDoc.data() });
@@ -146,7 +150,8 @@ const App = () => {
                     const userSeed = mockDatabaseSeed.users.find(u => u.email === emailUsername);
                     if(userSeed){
                         // Save the seed data (which has the short email) to Firestore
-                        await firestore.setDoc(userDocRef, userSeed);
+                        // FIX: Switched to named imports for Firestore functions
+                        await setDoc(userDocRef, userSeed);
                         // Set the current user state using the seed data
                         setCurrentUser({ uid: firebaseUser.uid, ...userSeed });
                     } else {
@@ -260,22 +265,24 @@ const InitializeDataButton = () => {
         setMessage('');
 
         try {
-            const batch = firestore.writeBatch(db);
+            // FIX: Switched to named imports for Firestore functions
+            const batch = writeBatch(db);
 
             // Set system config
-            const configDocRef = firestore.doc(db, "system", "config");
+            const configDocRef = doc(db, "system", "config");
             batch.set(configDocRef, mockDatabaseSeed.systemConfig);
 
             // Set club data
             for (const clubId in mockDatabaseSeed.clubs) {
                 const clubData = mockDatabaseSeed.clubs[clubId];
-                const clubDocRef = firestore.doc(db, "clubs", clubId);
+                const clubDocRef = doc(db, "clubs", clubId);
                 batch.set(clubDocRef, { name: clubData.name, plan: 'Básico', status: 'activo' });
 
                 for (const collectionName of ['socios', 'membresias', 'pagos', 'instructores', 'clases']) {
                     if (clubData[collectionName]) {
                         for (const item of clubData[collectionName]) {
-                            const itemDocRef = firestore.doc(firestore.collection(db, `clubs/${clubId}/${collectionName}`), item.id);
+                            // FIX: Switched to named imports for Firestore functions
+                            const itemDocRef = doc(collection(db, `clubs/${clubId}/${collectionName}`), item.id);
                             batch.set(itemDocRef, item);
                         }
                     }
@@ -345,8 +352,9 @@ const MainContent = ({ view, currentUser }) => {
     useEffect(() => {
         const checkData = async () => {
             if (role === 'super_admin') {
-                const docRef = firestore.doc(db, "system", "config");
-                const docSnap = await firestore.getDoc(docRef);
+                // FIX: Switched to named imports for Firestore functions
+                const docRef = doc(db, "system", "config");
+                const docSnap = await getDoc(docRef);
                 setIsDbInitialized(docSnap.exists());
             }
             setLoading(false);
@@ -406,10 +414,11 @@ const DashboardView = ({ clubId }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const sociosRef = firestore.collection(db, `clubs/${clubId}/socios`);
-                const membresiasRef = firestore.collection(db, `clubs/${clubId}/membresias`);
-                const sociosSnap = await firestore.getDocs(sociosRef);
-                const membresiasSnap = await firestore.getDocs(membresiasRef);
+                // FIX: Switched to named imports for Firestore functions
+                const sociosRef = collection(db, `clubs/${clubId}/socios`);
+                const membresiasRef = collection(db, `clubs/${clubId}/membresias`);
+                const sociosSnap = await getDocs(sociosRef);
+                const membresiasSnap = await getDocs(membresiasRef);
                 
                 const sociosData = sociosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const membresiasData = membresiasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -475,14 +484,16 @@ const SuperAdminDashboard = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const clubsRef = firestore.collection(db, "clubs");
-                const clubsSnap = await firestore.getDocs(clubsRef);
+                // FIX: Switched to named imports for Firestore functions
+                const clubsRef = collection(db, "clubs");
+                const clubsSnap = await getDocs(clubsRef);
                 const totalClubs = clubsSnap.size;
                 let totalSocios = 0;
                 
                 for (const clubDoc of clubsSnap.docs) {
-                    const sociosRef = firestore.collection(db, `clubs/${clubDoc.id}/socios`);
-                    const sociosSnap = await firestore.getDocs(sociosRef);
+                    // FIX: Switched to named imports for Firestore functions
+                    const sociosRef = collection(db, `clubs/${clubDoc.id}/socios`);
+                    const sociosSnap = await getDocs(sociosRef);
                     totalSocios += sociosSnap.size;
                 }
 
@@ -529,8 +540,9 @@ const InstructorDashboard = ({ clubId, instructorId }) => {
                 return;
             }
             try {
-                const classesRef = firestore.collection(db, `clubs/${clubId}/clases`);
-                const classesSnap = await firestore.getDocs(classesRef);
+                // FIX: Switched to named imports for Firestore functions
+                const classesRef = collection(db, `clubs/${clubId}/clases`);
+                const classesSnap = await getDocs(classesRef);
                 const allClasses = classesSnap.docs.map(doc => doc.data());
                 const instructorClasses = allClasses.filter(c => c.instructorId === instructorId);
                 
